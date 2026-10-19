@@ -1,0 +1,105 @@
+# Папка с таблицами и изображениями датасета
+data_dir: data
+
+# Количество объектов в одном batch
+batch_size: 4
+
+# Размер изображения после преобразования
+image_size: 224
+
+# Доля исходного train, используемая для validation
+validation_size: 0.2
+
+# Значение для воспроизводимого разделения и обучения
+seed: 42
+
+# Число дополнительных процессов загрузки данных
+# Для стабильной работы Jupyter на Windows используется 0
+num_workers: 0
+
+
+# Последовательность этапов обучения
+stages:
+
+  # Этап обучения с полностью замороженными энкодерами
+  - name: frozen_encoders
+
+    # Определяет, нужно ли выполнять этот этап
+    enabled: true
+
+    # Максимальное количество эпох
+    epochs: 10
+
+    # Learning rate для проекционных и регрессионных слоёв
+    learning_rate: 0.001
+
+    # Остановка после 3 эпох без улучшения validation MAE
+    patience: 3
+
+    # EfficientNet остаётся полностью замороженным
+    fine_tune_image: false
+
+    # Начальные веса не загружаются
+    initial_checkpoint: null
+
+    # Путь для сохранения лучшей модели первого этапа
+    checkpoint_path: artifacts/best_model_frozen.pt
+
+
+  # Этап частичного дообучения EfficientNet
+  - name: image_finetuning
+
+    # Определяет, нужно ли выполнять этот этап
+    enabled: true
+
+    # Максимальное количество эпох дообучения
+    epochs: 5
+
+    # Уменьшенный learning rate для аккуратного изменения весов
+    learning_rate: 0.0001
+
+    # Остановка после 3 эпох без улучшения validation MAE
+    patience: 3
+
+    # Размораживается последняя группа слоёв EfficientNet
+    fine_tune_image: true
+
+    # Загружается лучшая модель предыдущего этапа
+    initial_checkpoint: artifacts/best_model_frozen.pt
+
+    # Результат сохраняется отдельно от первого этапа
+    checkpoint_path: artifacts/best_model_finetuned.pt
+
+  # Обучение нейросетевой поправки к прогнозу Ridge
+  - name: residual_learning
+
+    # Выполнять этот этап при общем запуске
+    enabled: true
+
+    # Максимальное количество эпох
+    epochs: 5
+
+    # Небольшой learning rate для дообучения
+    learning_rate: 0.0001
+
+    # Остановка после 3 эпох без улучшения
+    patience: 3
+
+    # Последняя группа слоёв EfficientNet остаётся обучаемой
+    fine_tune_image: true
+
+    # Используем признаки лучшей мультимодальной модели
+    initial_checkpoint: artifacts/best_model_finetuned.pt
+
+    # Последний слой создаётся заново для предсказания поправки
+    reset_output_layer: true
+
+    # Тип предсказываемой величины
+    target_type: residual
+
+    # Параметры Ridge-регрессии
+    ridge_alpha: 10.0
+    ridge_folds: 5
+
+    # Отдельный checkpoint модели поправки
+    checkpoint_path: artifacts/best_model_residual.pt
