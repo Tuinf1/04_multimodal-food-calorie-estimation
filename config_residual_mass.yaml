@@ -1,0 +1,21 @@
+# Данные и воспроизводимость
+data_dir: data
+batch_size: 4
+image_size: 224
+validation_size: 0.2
+seed: 42
+num_workers: 2
+
+# Обучение нейросетевой поправки
+epochs: 15
+learning_rate: 0.0005
+patience: 4
+fine_tune_image: true
+initial_checkpoint: artifacts/best_model_finetuned.pt
+checkpoint_path: artifacts/best_model_residual_mass.pt
+
+# Ridge с отдельными признаками "ингредиент × масса"
+ridge_alpha: 10.0
+ridge_folds: 5
+use_ingredient_mass_features: true
+ridge_model_path: artifacts/ridge_residual_mass.joblib

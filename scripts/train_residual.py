@@ -39,6 +39,7 @@ def create_ridge_features(
     mass_mean,
     mass_std,
     fit_encoder=False,
+    use_ingredient_mass_features=False,
 ):
     """
     Создаёт признаки для Ridge.
@@ -73,12 +74,22 @@ def create_ridge_features(
         / mass_std
     ).reshape(-1, 1)
 
-    features = hstack(
-        [
-            ingredient_features,
-            csr_matrix(normalized_mass),
-        ]
-    ).tocsr()
+    feature_blocks = [
+        ingredient_features,
+        csr_matrix(normalized_mass),
+    ]
+
+    if use_ingredient_mass_features:
+        # Для каждого ингредиента добавляем взаимодействие
+        # с массой порции. Это позволяет Ridge учитывать,
+        # что одинаковая масса разных продуктов имеет
+        # различную калорийность.
+        ingredient_mass_features = (
+            ingredient_features.multiply(normalized_mass)
+        )
+        feature_blocks.append(ingredient_mass_features)
+
+    features = hstack(feature_blocks).tocsr()
 
     return features
 
@@ -90,6 +101,7 @@ def prepare_ridge_predictions(
     ridge_folds,
     seed,
     ridge_model_path,
+    use_ingredient_mass_features=False,
 ):
     """
     Обучает Ridge и подготавливает базовые прогнозы.
@@ -117,6 +129,9 @@ def prepare_ridge_predictions(
         mass_mean=mass_mean,
         mass_std=mass_std,
         fit_encoder=True,
+        use_ingredient_mass_features=(
+            use_ingredient_mass_features
+        ),
     )
 
     x_validation = create_ridge_features(
@@ -124,7 +139,18 @@ def prepare_ridge_predictions(
         ingredient_encoder=ingredient_encoder,
         mass_mean=mass_mean,
         mass_std=mass_std,
+        use_ingredient_mass_features=(
+            use_ingredient_mass_features
+        ),
     )
+
+    if use_ingredient_mass_features:
+        print(
+            "Включены признаки: "
+            "ингредиент × масса"
+        )
+
+    print("Ridge признаков:", x_train.shape[1])
 
     y_train = train_df[
         "total_calories"
@@ -234,6 +260,9 @@ def prepare_ridge_predictions(
             "mass_mean": mass_mean,
             "mass_std": mass_std,
             "ridge_alpha": ridge_alpha,
+            "use_ingredient_mass_features": (
+                use_ingredient_mass_features
+            ),
         },
         ridge_model_path,
     )
@@ -564,6 +593,10 @@ def train_residual(config_path):
             seed=config["seed"],
             ridge_model_path=(
                 config["ridge_model_path"]
+            ),
+            use_ingredient_mass_features=config.get(
+                "use_ingredient_mass_features",
+                False,
             ),
         )
     )
