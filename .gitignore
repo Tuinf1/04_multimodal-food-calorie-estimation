@@ -4,7 +4,7 @@ __pycache__/
 .ipynb_checkpoints/
 .pytest_cache/
 .ruff_cache/
-
+мд файлы
 data/
 artifacts/*.pt
 artifacts/*.pth
